@@ -1,0 +1,53 @@
+@model List<PrototipoCRUD.Models.Producto>
+@{
+    ViewData["Title"] = "Productos";
+}
+
+<h2>Catálogo de Productos</h2>
+
+<p>
+    <a asp-action="Create" class="btn btn-primary">Nuevo producto</a>
+    <a asp-controller="Proveedor" asp-action="Index" class="btn btn-secondary">Ir a Proveedores</a>
+</p>
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Id</th>
+            <th>Nombre</th>
+            <th>Código de barras</th>
+            <th>Precio</th>
+            <th>Stock</th>
+            <th>Stock mínimo</th>
+            <th>Vencimiento</th>
+            <th>Proveedor</th>
+            <th>Alerta</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var p in Model)
+    {
+        var stockBajo = p.Stock <= p.StockMinimo;
+        var porVencer = p.FechaVencimiento.HasValue && p.FechaVencimiento.Value.Date <= DateTime.Today.AddDays(7);
+        <tr class="@(stockBajo || porVencer ? "table-warning" : "")">
+            <td>@p.Id</td>
+            <td>@p.Nombre</td>
+            <td>@p.CodigoBarras</td>
+            <td>@p.Precio.ToString("0.00")</td>
+            <td>@p.Stock</td>
+            <td>@p.StockMinimo</td>
+            <td>@(p.FechaVencimiento.HasValue ? p.FechaVencimiento.Value.ToString("yyyy-MM-dd") : "-")</td>
+            <td>@(p.ProveedorNombre ?? "-")</td>
+            <td>
+                @if (stockBajo) { <span class="badge bg-danger">Stock bajo</span> }
+                @if (porVencer) { <span class="badge bg-warning text-dark">Vence pronto</span> }
+            </td>
+            <td>
+                <a asp-action="Edit" asp-route-id="@p.Id">Editar</a> |
+                <a asp-action="Delete" asp-route-id="@p.Id">Eliminar</a>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>

@@ -1,0 +1,47 @@
+@model PrototipoCRUD.Models.Producto
+@{
+    ViewData["Title"] = "Editar producto";
+}
+
+<h2>Editar producto</h2>
+
+<form asp-action="Edit" method="post">
+    <input type="hidden" asp-for="Id" />
+    <div class="mb-3">
+        <label asp-for="Nombre" class="form-label">Nombre</label>
+        <input asp-for="Nombre" class="form-control" />
+        <span asp-validation-for="Nombre" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="CodigoBarras" class="form-label">Código de barras</label>
+        <input asp-for="CodigoBarras" class="form-control" />
+        <span asp-validation-for="CodigoBarras" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Precio" class="form-label">Precio</label>
+        <input asp-for="Precio" class="form-control" />
+        <span asp-validation-for="Precio" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Stock" class="form-label">Stock</label>
+        <input asp-for="Stock" class="form-control" />
+        <span asp-validation-for="Stock" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="StockMinimo" class="form-label">Stock mínimo</label>
+        <input asp-for="StockMinimo" class="form-control" />
+        <span asp-validation-for="StockMinimo" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="FechaVencimiento" class="form-label">Fecha de vencimiento (opcional)</label>
+        <input asp-for="FechaVencimiento" type="date" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="ProveedorId" class="form-label">Proveedor</label>
+        <select asp-for="ProveedorId" asp-items="(SelectList)ViewBag.Proveedores" class="form-select">
+            <option value="">-- Sin proveedor --</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-success">Actualizar</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
+</form>

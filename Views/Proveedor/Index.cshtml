@@ -1,0 +1,38 @@
+@model List<PrototipoCRUD.Models.Proveedor>
+@{
+    ViewData["Title"] = "Proveedores";
+}
+
+<h2>Proveedores</h2>
+
+<p>
+    <a asp-action="Create" class="btn btn-primary">Nuevo proveedor</a>
+    <a asp-controller="Producto" asp-action="Index" class="btn btn-secondary">Ir a Productos</a>
+</p>
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Id</th>
+            <th>Nombre</th>
+            <th>Teléfono</th>
+            <th>Correo</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var p in Model)
+    {
+        <tr>
+            <td>@p.Id</td>
+            <td>@p.Nombre</td>
+            <td>@(p.Telefono ?? "-")</td>
+            <td>@(p.Correo ?? "-")</td>
+            <td>
+                <a asp-action="Edit" asp-route-id="@p.Id">Editar</a> |
+                <a asp-action="Delete" asp-route-id="@p.Id">Eliminar</a>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>
