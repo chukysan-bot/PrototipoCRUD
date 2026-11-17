@@ -1,0 +1,178 @@
+@model PrototipoCRUD.Models.Venta
+@{
+    ViewData["Title"] = "Registro de Venta";
+    var productos = ViewBag.Productos as List<PrototipoCRUD.Models.Producto> ?? new List<PrototipoCRUD.Models.Producto>();
+}
+
+<h2>Registro Transaccional de Ventas</h2>
+<hr />
+
+<div id="alertaMensaje" class="alert d-none" role="alert"></div>
+
+<!-- CABECERA -->
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white"><strong>Datos de la Venta (Cabecera)</strong></div>
+    <div class="card-body row">
+        <div class="col-md-4 mb-3">
+            <label class="form-label">Fecha y Hora</label>
+            <input type="text" id="txtFecha" class="form-control" value="@Model.Fecha.ToString("dd/MM/yyyy HH:mm")" readonly />
+        </div>
+        <div class="col-md-8 mb-3">
+            <label class="form-label">Cliente</label>
+            <input type="text" id="txtCliente" class="form-control" value="@Model.Cliente" placeholder="Consumidor Final" />
+        </div>
+    </div>
+</div>
+
+<!-- DETALLE -->
+<div class="card mb-4">
+    <div class="card-header bg-secondary text-white"><strong>Agregar Productos al Detalle</strong></div>
+    <div class="card-body">
+        <div class="row align-items-end">
+            <div class="col-md-5 mb-3">
+                <label class="form-label">Producto</label>
+                <select id="cmbProducto" class="form-select">
+                    <option value="">-- Seleccione un producto --</option>
+                    @foreach (var p in productos)
+                    {
+                        <option value="@p.Id" data-nombre="@p.Nombre" data-precio="@p.Precio.ToString(System.Globalization.CultureInfo.InvariantCulture)">
+                            @p.Nombre - Bs. @p.Precio.ToString("N2")
+                        </option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3 mb-3">
+                <label class="form-label">Cantidad</label>
+                <input type="number" id="txtCantidad" class="form-control" value="1" min="1" />
+            </div>
+            <div class="col-md-4 mb-3">
+                <button type="button" id="btnAgregar" class="btn btn-primary w-100">+ Agregar a la lista</button>
+            </div>
+        </div>
+
+        <table class="table table-bordered table-striped mt-3">
+            <thead class="table-dark">
+                <tr>
+                    <th>Producto</th>
+                    <th class="text-center">Cantidad</th>
+                    <th class="text-end">Precio Unitario (Bs.)</th>
+                    <th class="text-end">Subtotal (Bs.)</th>
+                    <th class="text-center">Acción</th>
+                </tr>
+            </thead>
+            <tbody id="tablaDetalleBody">
+                <tr id="filaVacia"><td colspan="5" class="text-center text-muted">Aún no hay productos agregados a la venta.</td></tr>
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="3" class="text-end fs-5">TOTAL GENERAL:</th>
+                    <th class="text-end fs-5 text-success" id="lblTotal">Bs. 0.00</th>
+                    <th></th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<div class="d-flex justify-content-end gap-2">
+    <a asp-controller="Producto" asp-action="Index" class="btn btn-secondary">Cancelar</a>
+    <button type="button" id="btnConfirmarVenta" class="btn btn-success btn-lg">Aceptar / Confirmar Venta</button>
+</div>
+
+@section Scripts {
+    <script>
+        let detallesVenta = [];
+        const cmbProducto = document.getElementById("cmbProducto");
+        const txtCantidad = document.getElementById("txtCantidad");
+        const btnAgregar = document.getElementById("btnAgregar");
+        const tablaBody = document.getElementById("tablaDetalleBody");
+        const lblTotal = document.getElementById("lblTotal");
+        const btnConfirmar = document.getElementById("btnConfirmarVenta");
+        const alerta = document.getElementById("alertaMensaje");
+
+        function mostrarAlerta(mensaje, tipo) {
+            alerta.textContent = mensaje;
+            alerta.className = `alert alert-${tipo}`;
+            alerta.classList.remove("d-none");
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        function ocultarAlerta() { alerta.classList.add("d-none"); }
+
+        btnAgregar.addEventListener("click", () => {
+            ocultarAlerta();
+            const op = cmbProducto.options[cmbProducto.selectedIndex];
+            if (!op || !op.value) { mostrarAlerta("Seleccione un producto válido.", "warning"); return; }
+            
+            const id = parseInt(op.value);
+            const nombre = op.getAttribute("data-nombre");
+            const precio = parseFloat(op.getAttribute("data-precio"));
+            const cant = parseInt(txtCantidad.value);
+
+            if (isNaN(cant) || cant <= 0) { mostrarAlerta("La cantidad debe ser mayor a 0.", "danger"); return; }
+
+            const ex = detallesVenta.find(d => d.IdProducto === id);
+            if (ex) { ex.Cantidad += cant; } 
+            else { detallesVenta.push({ IdProducto: id, NombreProducto: nombre, Cantidad: cant, PrecioUnitario: precio }); }
+
+            cmbProducto.value = ""; txtCantidad.value = 1;
+            renderizarTabla();
+        });
+
+        function quitarProducto(i) {
+            ocultarAlerta();
+            detallesVenta.splice(i, 1);
+            renderizarTabla();
+        }
+
+        function renderizarTabla() {
+            tablaBody.innerHTML = "";
+            let total = 0;
+            if (detallesVenta.length === 0) {
+                tablaBody.innerHTML = `<tr id="filaVacia"><td colspan="5" class="text-center text-muted">Aún no hay productos agregados a la venta.</td></tr>`;
+                lblTotal.textContent = "Bs. 0.00";
+                return;
+            }
+            detallesVenta.forEach((item, index) => {
+                const sub = item.Cantidad * item.PrecioUnitario;
+                total += sub;
+                tablaBody.innerHTML += `
+                    <tr>
+                        <td>${item.NombreProducto}</td>
+                        <td class="text-center">${item.Cantidad}</td>
+                        <td class="text-end">${item.PrecioUnitario.toFixed(2)}</td>
+                        <td class="text-end fw-bold">${sub.toFixed(2)}</td>
+                        <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="quitarProducto(${index})">Quitar</button></td>
+                    </tr>`;
+            });
+            lblTotal.textContent = `Bs. ${total.toFixed(2)}`;
+        }
+
+        btnConfirmar.addEventListener("click", async () => {
+            ocultarAlerta();
+            if (detallesVenta.length === 0) { mostrarAlerta("No puede confirmar una venta vacía.", "danger"); return; }
+
+            const cliente = document.getElementById("txtCliente").value.trim() || "Consumidor Final";
+            try {
+                btnConfirmar.disabled = true;
+                const res = await fetch('/Venta/Registrar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ Cliente: cliente, Detalles: detallesVenta })
+                });
+                const json = await res.json();
+                if (res.ok && json.exito) {
+                    mostrarAlerta(json.mensaje, "success");
+                    detallesVenta = [];
+                    document.getElementById("txtCliente").value = "Consumidor Final";
+                    renderizarTabla();
+                } else {
+                    mostrarAlerta(json.mensaje || "Error al registrar.", "danger");
+                }
+            } catch {
+                mostrarAlerta("Error de conexión.", "danger");
+            } finally {
+                btnConfirmar.disabled = false;
+            }
+        });
+    </script>
+}

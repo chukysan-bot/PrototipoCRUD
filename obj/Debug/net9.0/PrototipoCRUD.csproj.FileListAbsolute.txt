@@ -97,3 +97,4 @@ C:\Users\ASUS\Downloads\PrototipoCRUD\obj\Debug\net9.0\refint\PrototipoCRUD.dll
 C:\Users\ASUS\Downloads\PrototipoCRUD\obj\Debug\net9.0\PrototipoCRUD.pdb
 C:\Users\ASUS\Downloads\PrototipoCRUD\obj\Debug\net9.0\PrototipoCRUD.genruntimeconfig.cache
 C:\Users\ASUS\Downloads\PrototipoCRUD\obj\Debug\net9.0\ref\PrototipoCRUD.dll
+C:\Users\ASUS\Downloads\PrototipoCRUD\obj\Debug\net9.0\PrototipoCRUD.sourcelink.json
