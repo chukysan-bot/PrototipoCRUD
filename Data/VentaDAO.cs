@@ -6,51 +6,106 @@ namespace PrototipoCRUD.Data
 {
     public class VentaDAO
     {
-        private readonly string _cadenaConexion = "Host=localhost; Port=5432; Database=minisuper; Username=postgres; Password=postgres";
+        private readonly string _connectionString;
 
-        public int RegistrarVenta(Venta venta)
+        public VentaDAO(string connectionString)
         {
-            venta.ValidarReglasDeNegocio();
+            _connectionString = connectionString;
+        }
 
-            using var conexion = new NpgsqlConnection(_cadenaConexion);
-            conexion.Open();
+        public void RegistrarVenta(Venta venta)
+        {
+            if (venta == null)
+                throw new ArgumentNullException(nameof(venta));
 
-            using var transaccion = conexion.BeginTransaction();
+            if (venta.Detalles == null || venta.Detalles.Count == 0)
+                throw new ArgumentException("La venta debe tener al menos un detalle.");
+
+            if (venta.PorcentajeDescuento < 0 || venta.PorcentajeDescuento > 20)
+                throw new ArgumentOutOfRangeException(
+                    nameof(venta.PorcentajeDescuento),
+                    "El descuento permitido debe estar entre 0% y un máximo de 20%."
+                );
+
+            string vendedorFinal = string.IsNullOrWhiteSpace(venta.Vendedor)
+                ? "Vendedor General"
+                : venta.Vendedor.Trim();
+
+            using var conn = new NpgsqlConnection(_connectionString);
+            conn.Open();
+
+            using var tx = conn.BeginTransaction();
+
             try
             {
-                string sqlCabecera = @"INSERT INTO ventas (fecha, cliente, subtotal, descuento_aplicado, total, vendedor_id)  VALUES (@fecha, @cliente, @subtotal, @descuento, @total, @vendedorId) RETURNING id";
-                int idVentaGenerado;
+                string sqlVenta = @"
+                    INSERT INTO ventas (
+                        fecha,
+                        cliente,
+                        vendedor,
+                        subtotal_bruto,
+                        porcentaje_descuento,
+                        monto_descuento,
+                        total_final
+                    )
+                    VALUES (
+                        @fecha,
+                        @cliente,
+                        @vendedor,
+                        @subtotal_bruto,
+                        @porcentaje_descuento,
+                        @monto_descuento,
+                        @total_final
+                    )
+                    RETURNING id;";
 
-                using (var cmdCab = new NpgsqlCommand(sqlCabecera, conexion, transaccion))
+                int ventaId;
+                using (var cmdVenta = new NpgsqlCommand(sqlVenta, conn, tx))
                 {
-                    cmdCab.Parameters.AddWithValue("fecha", venta.Fecha);
-                    cmdCab.Parameters.AddWithValue("cliente", venta.Cliente);
-                    cmdCab.Parameters.AddWithValue("subtotal", venta.Subtotal);
-                    cmdCab.Parameters.AddWithValue("descuento", venta.DescuentoAplicado);
-                    cmdCab.Parameters.AddWithValue("total", venta.Total);
-                    cmdCab.Parameters.AddWithValue("vendedorId", venta.VendedorId);
-                    idVentaGenerado = Convert.ToInt32(cmdCab.ExecuteScalar());
+                    cmdVenta.Parameters.AddWithValue("@fecha", venta.Fecha);
+                    cmdVenta.Parameters.AddWithValue("@cliente", venta.Cliente ?? "Consumidor Final");
+                    cmdVenta.Parameters.AddWithValue("@vendedor", vendedorFinal);
+                    cmdVenta.Parameters.AddWithValue("@subtotal_bruto", venta.SubtotalBruto);
+                    cmdVenta.Parameters.AddWithValue("@porcentaje_descuento", venta.PorcentajeDescuento);
+                    cmdVenta.Parameters.AddWithValue("@monto_descuento", venta.MontoDescuento);
+                    cmdVenta.Parameters.AddWithValue("@total_final", venta.TotalFinal);
+
+                    ventaId = Convert.ToInt32(cmdVenta.ExecuteScalar());
                 }
-                string sqlDetalle = @"INSERT INTO detalle_ventas 
-                    (id_venta, id_producto, nombre_producto, cantidad, precio_unitario, subtotal) 
-                    VALUES (@idVenta, @idProd, @nomProd, @cant, @precio, @sub)";
-                foreach (var item in venta.Detalles)
+
+                string sqlDetalle = @"
+                    INSERT INTO detalle_ventas (
+                        venta_id,
+                        producto_id,
+                        cantidad,
+                        precio_unitario,
+                        subtotal
+                    )
+                    VALUES (
+                        @venta_id,
+                        @producto_id,
+                        @cantidad,
+                        @precio_unitario,
+                        @subtotal
+                    );";
+
+                foreach (var detalle in venta.Detalles)
                 {
-                    using var cmdDet = new NpgsqlCommand(sqlDetalle, conexion, transaccion);
-                    cmdDet.Parameters.AddWithValue("idVenta", idVentaGenerado);
-                    cmdDet.Parameters.AddWithValue("idProd", item.IdProducto);
-                    cmdDet.Parameters.AddWithValue("nomProd", item.NombreProducto);
-                    cmdDet.Parameters.AddWithValue("cant", item.Cantidad);
-                    cmdDet.Parameters.AddWithValue("precio", item.PrecioUnitario);
-                    cmdDet.Parameters.AddWithValue("sub", item.Subtotal);
-                    cmdDet.ExecuteNonQuery();
+                    using var cmdDetalle = new NpgsqlCommand(sqlDetalle, conn, tx);
+                    cmdDetalle.Parameters.AddWithValue("@venta_id", ventaId);
+                    cmdDetalle.Parameters.AddWithValue("@producto_id", detalle.IdProducto);
+                    cmdDetalle.Parameters.AddWithValue("@cantidad", detalle.Cantidad);
+                    cmdDetalle.Parameters.AddWithValue("@precio_unitario", detalle.PrecioUnitario);
+                    cmdDetalle.Parameters.AddWithValue("@subtotal", detalle.Subtotal);
+                    cmdDetalle.ExecuteNonQuery();
                 }
-                transaccion.Commit();
-                return idVentaGenerado;
+
+                tx.Commit();
+                venta.Id = ventaId;
             }
-            catch (Exception)
+            catch
             {
-                transaccion.Rollback();
+                tx.Rollback();
                 throw;
             }
         }

@@ -1,5 +1,6 @@
 using System;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using PrototipoCRUD.Data;
 using PrototipoCRUD.Models;
 
@@ -7,53 +8,48 @@ namespace PrototipoCRUD.Controllers
 {
     public class VentaController : Controller
     {
-        private readonly VentaDAO _ventaDao = new VentaDAO();
-        private readonly ProductoDAO _productoDao = new ProductoDAO();
+        private readonly VentaDAO _ventaDAO;
 
+        public VentaController(IConfiguration configuration)
+        {
+            string connectionString = configuration.GetConnectionString("DefaultConnection") ?? string.Empty;
+            _ventaDAO = new VentaDAO(connectionString);
+        }
+
+        [HttpGet]
         public IActionResult Create()
         {
-            ViewBag.Productos = _productoDao.ObtenerTodos();
             return View(new Venta());
         }
 
         [HttpPost]
-        public IActionResult Registrar([FromBody] Venta venta)
+        [ValidateAntiForgeryToken]
+        public IActionResult Create(Venta venta, decimal porcentajeDescuento = 0)
         {
-            if (venta == null)
-            {
-                return BadRequest(new { exito = false, mensaje = "Datos de venta inválidos." });
-            }
-
             try
             {
-                if (string.IsNullOrWhiteSpace(venta.Cliente))
+                venta.AplicarDescuento(porcentajeDescuento);
+
+                if (string.IsNullOrWhiteSpace(venta.Vendedor))
                 {
-                    venta.Cliente = "Consumidor Final";
+                    venta.Vendedor = User?.Identity?.Name is { Length: > 0 } name
+                        ? name
+                        : "Vendedor General";
                 }
-                venta.Fecha = DateTime.Now;
 
-                var claimId = User?.FindFirst("VendedorId")?.Value;
-                venta.VendedorId = int.TryParse(claimId, out int idAutenticado) ? idAutenticado : 1;
-
-                int idVentaGenerado = _ventaDao.RegistrarVenta(venta);
-
-                return Ok(new
-                {
-                    exito = true,
-                    mensaje = $"¡Venta #{idVentaGenerado} registrada! Subtotal: Bs. {venta.Subtotal:N2} | Descuento: Bs. {venta.DescuentoAplicado:N2} | Total: Bs. {venta.Total:N2} (Vendedor ID: {venta.VendedorId})"
-                });
+                _ventaDAO.RegistrarVenta(venta);
+                TempData["MensajeExito"] = $"Venta registrada. Total final: {venta.TotalFinal:0.00} (Descuento aplicado: {venta.PorcentajeDescuento}%).";
+                return RedirectToAction(nameof(Create));
             }
-            catch (DescuentoInvalidoException ex)
+            catch (ArgumentOutOfRangeException ex)
             {
-                return UnprocessableEntity(new { exito = false, mensaje = ex.Message });
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new { exito = false, mensaje = ex.Message });
+                ModelState.AddModelError(string.Empty, ex.Message);
+                return View(venta);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { exito = false, mensaje = "Error interno al guardar la venta: " + ex.Message });
+                ModelState.AddModelError(string.Empty, $"No se pudo registrar la venta: {ex.Message}");
+                return View(venta);
             }
         }
     }

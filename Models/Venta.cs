@@ -9,32 +9,28 @@ namespace PrototipoCRUD.Models
         public int Id { get; set; }
         public DateTime Fecha { get; set; } = DateTime.Now;
         public string Cliente { get; set; } = "Consumidor Final";
-        public int VendedorId { get; set; }
-        public decimal DescuentoAplicado { get; set; } = 0m;
+        public string Vendedor { get; set; } = string.Empty;
         public List<DetalleVenta> Detalles { get; set; } = new();
 
-        public decimal Subtotal => Math.Round(Detalles.Sum(d => d.Subtotal), 2);
+        public decimal PorcentajeDescuento { get; private set; }
 
-        public decimal Total => Math.Round(Subtotal - DescuentoAplicado, 2);
+        public decimal SubtotalBruto => Math.Round(Detalles.Sum(d => d.Subtotal), 2);
 
-        public void ValidarReglasDeNegocio()
+        public decimal MontoDescuento => Math.Round(SubtotalBruto * (PorcentajeDescuento / 100m), 2);
+
+        public decimal TotalFinal => Math.Round(SubtotalBruto - MontoDescuento, 2);
+
+        public void AplicarDescuento(decimal porcentaje)
         {
-            if (Detalles == null || Detalles.Count == 0 || Subtotal <= 0)
+            if (porcentaje < 0 || porcentaje > 20)
             {
-                throw new ArgumentException("La venta debe tener al menos un producto con subtotal mayor a cero.");
+                throw new ArgumentOutOfRangeException(
+                    nameof(porcentaje),
+                    "El descuento permitido debe estar entre 0% y un máximo de 20%."
+                );
             }
 
-            if (DescuentoAplicado < 0)
-            {
-                throw new DescuentoInvalidoException("El descuento no puede ser negativo.");
-            }
-
-            decimal descuentoMaximoPermitido = Math.Round(Subtotal * 0.20m, 2);
-            if (DescuentoAplicado > descuentoMaximoPermitido)
-            {
-                throw new DescuentoInvalidoException(
-                    $"El descuento de Bs. {DescuentoAplicado:N2} excede el límite máximo corporativo del 20% (Bs. {descuentoMaximoPermitido:N2}).");
-            }
+            PorcentajeDescuento = porcentaje;
         }
     }
 }
