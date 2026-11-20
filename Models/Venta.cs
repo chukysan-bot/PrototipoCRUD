@@ -12,7 +12,7 @@ namespace PrototipoCRUD.Models
         public string Vendedor { get; set; } = string.Empty;
         public List<DetalleVenta> Detalles { get; set; } = new();
 
-        public decimal PorcentajeDescuento { get; private set; }
+        public decimal PorcentajeDescuento { get; set; }
 
         public decimal SubtotalBruto => Math.Round(Detalles.Sum(d => d.Subtotal), 2);
 

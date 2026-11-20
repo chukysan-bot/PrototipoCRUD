@@ -17,9 +17,13 @@
             <label class="form-label">Fecha y Hora</label>
             <input type="text" id="txtFecha" class="form-control" value="@Model.Fecha.ToString("dd/MM/yyyy HH:mm")" readonly />
         </div>
-        <div class="col-md-8 mb-3">
+        <div class="col-md-4 mb-3">
             <label class="form-label">Cliente</label>
             <input type="text" id="txtCliente" class="form-control" value="@Model.Cliente" placeholder="Consumidor Final" />
+        </div>
+        <div class="col-md-4 mb-3">
+            <label class="form-label">Vendedor</label>
+            <input type="text" id="txtVendedor" class="form-control" value="@Model.Vendedor" placeholder="Ej. Carlos Pérez" />
         </div>
     </div>
 </div>
@@ -65,19 +69,24 @@
             </tbody>
             <tfoot>
                 <tr>
-                    <th colspan="3" class="text-end">SUBTOTAL:</th>
+                    <th colspan="3" class="text-end">SUBTOTAL BRUTO:</th>
                     <th class="text-end" id="lblSubtotal">Bs. 0.00</th>
                     <th></th>
                 </tr>
                 <tr>
-                    <th colspan="3" class="text-end align-middle">DESCUENTO (Bs. - Máx 20%):</th>
+                    <th colspan="3" class="text-end align-middle">DESCUENTO (% - Máx 20%):</th>
                     <th class="text-end">
-                        <input type="number" id="txtDescuento" class="form-control text-end" value="0" step="0.01" />
+                        <input type="number" id="txtPorcentajeDescuento" class="form-control text-end" value="0" step="0.01" />
                     </th>
                     <th></th>
                 </tr>
                 <tr>
-                    <th colspan="3" class="text-end fs-5">TOTAL A PAGAR:</th>
+                    <th colspan="3" class="text-end">MONTO DESCUENTO:</th>
+                    <th class="text-end" id="lblMontoDescuento">Bs. 0.00</th>
+                    <th></th>
+                </tr>
+                <tr>
+                    <th colspan="3" class="text-end fs-5">TOTAL FINAL A PAGAR:</th>
                     <th class="text-end fs-5 text-success" id="lblTotal">Bs. 0.00</th>
                     <th></th>
                 </tr>
@@ -96,10 +105,11 @@
         let detallesVenta = [];
         const cmbProducto = document.getElementById("cmbProducto");
         const txtCantidad = document.getElementById("txtCantidad");
-        const txtDescuento = document.getElementById("txtDescuento");
+        const txtPorcentajeDescuento = document.getElementById("txtPorcentajeDescuento");
         const btnAgregar = document.getElementById("btnAgregar");
         const tablaBody = document.getElementById("tablaDetalleBody");
         const lblSubtotal = document.getElementById("lblSubtotal");
+        const lblMontoDescuento = document.getElementById("lblMontoDescuento");
         const lblTotal = document.getElementById("lblTotal");
         const btnConfirmar = document.getElementById("btnConfirmarVenta");
         const alerta = document.getElementById("alertaMensaje");
@@ -110,29 +120,47 @@
             alerta.classList.remove("d-none");
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
-        function ocultarAlerta() { alerta.classList.add("d-none"); }
+
+        function ocultarAlerta() {
+            alerta.classList.add("d-none");
+        }
 
         btnAgregar.addEventListener("click", () => {
             ocultarAlerta();
             const op = cmbProducto.options[cmbProducto.selectedIndex];
-            if (!op || !op.value) { mostrarAlerta("Seleccione un producto válido.", "warning"); return; }
+            if (!op || !op.value) {
+                mostrarAlerta("Por favor, seleccione un producto para agregar a la venta.", "warning");
+                return;
+            }
 
             const id = parseInt(op.value);
             const nombre = op.getAttribute("data-nombre");
             const precio = parseFloat(op.getAttribute("data-precio"));
             const cant = parseInt(txtCantidad.value);
 
-            if (isNaN(cant) || cant <= 0) { mostrarAlerta("La cantidad debe ser mayor a 0.", "danger"); return; }
+            if (isNaN(cant) || cant <= 0) {
+                mostrarAlerta("Ingrese una cantidad válida mayor a 0.", "warning");
+                return;
+            }
 
             const ex = detallesVenta.find(d => d.IdProducto === id);
-            if (ex) { ex.Cantidad += cant; }
-            else { detallesVenta.push({ IdProducto: id, NombreProducto: nombre, Cantidad: cant, PrecioUnitario: precio }); }
+            if (ex) {
+                ex.Cantidad += cant;
+            } else {
+                detallesVenta.push({
+                    IdProducto: id,
+                    NombreProducto: nombre,
+                    Cantidad: cant,
+                    PrecioUnitario: precio
+                });
+            }
 
-            cmbProducto.value = ""; txtCantidad.value = 1;
+            cmbProducto.value = "";
+            txtCantidad.value = 1;
             renderizarTabla();
         });
 
-        txtDescuento.addEventListener("input", renderizarTabla);
+        txtPorcentajeDescuento.addEventListener("input", renderizarTabla);
 
         function quitarProducto(i) {
             ocultarAlerta();
@@ -143,12 +171,15 @@
         function renderizarTabla() {
             tablaBody.innerHTML = "";
             let subtotal = 0;
+
             if (detallesVenta.length === 0) {
                 tablaBody.innerHTML = `<tr id="filaVacia"><td colspan="5" class="text-center text-muted">Aún no hay productos agregados a la venta.</td></tr>`;
                 lblSubtotal.textContent = "Bs. 0.00";
+                lblMontoDescuento.textContent = "Bs. 0.00";
                 lblTotal.textContent = "Bs. 0.00";
                 return;
             }
+
             detallesVenta.forEach((item, index) => {
                 const sub = item.Cantidad * item.PrecioUnitario;
                 subtotal += sub;
@@ -161,38 +192,59 @@
                         <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="quitarProducto(${index})">Quitar</button></td>
                     </tr>`;
             });
-            const desc = parseFloat(txtDescuento.value) || 0;
-            const total = subtotal - desc;
+
+            const pct = parseFloat(txtPorcentajeDescuento.value) || 0;
+            const montoDesc = Math.round(subtotal * (pct / 100) * 100) / 100;
+            const total = Math.round((subtotal - montoDesc) * 100) / 100;
+
             lblSubtotal.textContent = `Bs. ${subtotal.toFixed(2)}`;
+            lblMontoDescuento.textContent = `Bs. ${montoDesc.toFixed(2)}`;
             lblTotal.textContent = `Bs. ${total.toFixed(2)}`;
         }
 
         btnConfirmar.addEventListener("click", async () => {
             ocultarAlerta();
-            if (detallesVenta.length === 0) { mostrarAlerta("No puede confirmar una venta vacía.", "danger"); return; }
+
+            if (detallesVenta.length === 0) {
+                mostrarAlerta("Agregue al menos un producto antes de confirmar la venta.", "warning");
+                return;
+            }
 
             const cliente = document.getElementById("txtCliente").value.trim() || "Consumidor Final";
-            const descuento = parseFloat(txtDescuento.value) || 0;
+            const vendedor = document.getElementById("txtVendedor").value.trim() || "Vendedor General";
+            const porcentajeDescuento = parseFloat(txtPorcentajeDescuento.value) || 0;
+
+            if (porcentajeDescuento < 0 || porcentajeDescuento > 20) {
+                mostrarAlerta("El descuento permitido debe estar entre 0% y un máximo de 20%. Ajuste el porcentaje para continuar.", "warning");
+                return;
+            }
 
             try {
                 btnConfirmar.disabled = true;
                 const res = await fetch('/Venta/Registrar', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ Cliente: cliente, DescuentoAplicado: descuento, Detalles: detallesVenta })
+                    body: JSON.stringify({
+                        Cliente: cliente,
+                        Vendedor: vendedor,
+                        PorcentajeDescuento: porcentajeDescuento,
+                        Detalles: detallesVenta
+                    })
                 });
+
                 const json = await res.json();
                 if (res.ok && json.exito) {
-                    mostrarAlerta(json.mensaje, "success");
+                    mostrarAlerta(json.mensaje || "Venta registrada correctamente.", "success");
                     detallesVenta = [];
-                    txtDescuento.value = "0";
+                    txtPorcentajeDescuento.value = "0";
                     document.getElementById("txtCliente").value = "Consumidor Final";
+                    document.getElementById("txtVendedor").value = "";
                     renderizarTabla();
                 } else {
-                    mostrarAlerta(json.mensaje || "Error al registrar.", "danger");
+                    mostrarAlerta(json.mensaje || "Revise los datos ingresados antes de registrar la venta.", "warning");
                 }
             } catch {
-                mostrarAlerta("Error de conexión.", "danger");
+                mostrarAlerta("No se pudo conectar con el servidor. Intente nuevamente.", "warning");
             } finally {
                 btnConfirmar.disabled = false;
             }

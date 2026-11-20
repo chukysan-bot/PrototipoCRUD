@@ -27,6 +27,8 @@ namespace PrototipoCRUD.Data
                     "El descuento permitido debe estar entre 0% y un máximo de 20%."
                 );
 
+            venta.AplicarDescuento(venta.PorcentajeDescuento);
+
             string vendedorFinal = string.IsNullOrWhiteSpace(venta.Vendedor)
                 ? "Vendedor General"
                 : venta.Vendedor.Trim();
@@ -46,7 +48,8 @@ namespace PrototipoCRUD.Data
                         subtotal_bruto,
                         porcentaje_descuento,
                         monto_descuento,
-                        total_final
+                        total_final,
+                        total
                     )
                     VALUES (
                         @fecha,
@@ -55,7 +58,8 @@ namespace PrototipoCRUD.Data
                         @subtotal_bruto,
                         @porcentaje_descuento,
                         @monto_descuento,
-                        @total_final
+                        @total_final,
+                        @total
                     )
                     RETURNING id;";
 
@@ -69,21 +73,24 @@ namespace PrototipoCRUD.Data
                     cmdVenta.Parameters.AddWithValue("@porcentaje_descuento", venta.PorcentajeDescuento);
                     cmdVenta.Parameters.AddWithValue("@monto_descuento", venta.MontoDescuento);
                     cmdVenta.Parameters.AddWithValue("@total_final", venta.TotalFinal);
+                    cmdVenta.Parameters.AddWithValue("@total", venta.TotalFinal);
 
                     ventaId = Convert.ToInt32(cmdVenta.ExecuteScalar());
                 }
 
                 string sqlDetalle = @"
                     INSERT INTO detalle_ventas (
-                        venta_id,
-                        producto_id,
+                        id_venta,
+                        id_producto,
+                        nombre_producto,
                         cantidad,
                         precio_unitario,
                         subtotal
                     )
                     VALUES (
-                        @venta_id,
-                        @producto_id,
+                        @id_venta,
+                        @id_producto,
+                        @nombre_producto,
                         @cantidad,
                         @precio_unitario,
                         @subtotal
@@ -91,12 +98,17 @@ namespace PrototipoCRUD.Data
 
                 foreach (var detalle in venta.Detalles)
                 {
+                    decimal subtotalLinea = detalle.Subtotal > 0
+                        ? detalle.Subtotal
+                        : detalle.Cantidad * detalle.PrecioUnitario;
+
                     using var cmdDetalle = new NpgsqlCommand(sqlDetalle, conn, tx);
-                    cmdDetalle.Parameters.AddWithValue("@venta_id", ventaId);
-                    cmdDetalle.Parameters.AddWithValue("@producto_id", detalle.IdProducto);
+                    cmdDetalle.Parameters.AddWithValue("@id_venta", ventaId);
+                    cmdDetalle.Parameters.AddWithValue("@id_producto", detalle.IdProducto);
+                    cmdDetalle.Parameters.AddWithValue("@nombre_producto", (object?)detalle.NombreProducto ?? "Producto");
                     cmdDetalle.Parameters.AddWithValue("@cantidad", detalle.Cantidad);
                     cmdDetalle.Parameters.AddWithValue("@precio_unitario", detalle.PrecioUnitario);
-                    cmdDetalle.Parameters.AddWithValue("@subtotal", detalle.Subtotal);
+                    cmdDetalle.Parameters.AddWithValue("@subtotal", subtotalLinea);
                     cmdDetalle.ExecuteNonQuery();
                 }
 
