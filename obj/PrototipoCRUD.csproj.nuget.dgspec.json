@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\ASUS\\Downloads\\PrototipoCRUD\\PrototipoCRUD.csproj": {}
+    "c:\\Users\\ASUS\\Downloads\\PrototipoCRUD\\PrototipoCRUD.csproj": {}
   },
   "projects": {
-    "C:\\Users\\ASUS\\Downloads\\PrototipoCRUD\\PrototipoCRUD.csproj": {
+    "c:\\Users\\ASUS\\Downloads\\PrototipoCRUD\\PrototipoCRUD.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\ASUS\\Downloads\\PrototipoCRUD\\PrototipoCRUD.csproj",
+        "projectUniqueName": "c:\\Users\\ASUS\\Downloads\\PrototipoCRUD\\PrototipoCRUD.csproj",
         "projectName": "PrototipoCRUD",
-        "projectPath": "C:\\Users\\ASUS\\Downloads\\PrototipoCRUD\\PrototipoCRUD.csproj",
+        "projectPath": "c:\\Users\\ASUS\\Downloads\\PrototipoCRUD\\PrototipoCRUD.csproj",
         "packagesPath": "C:\\Users\\ASUS\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\ASUS\\Downloads\\PrototipoCRUD\\obj\\",
+        "outputPath": "c:\\Users\\ASUS\\Downloads\\PrototipoCRUD\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

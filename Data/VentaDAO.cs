@@ -1,4 +1,6 @@
 using System;
+using System.Data;
+using System.IO;
 using Npgsql;
 using PrototipoCRUD.Models;
 
@@ -15,11 +17,12 @@ namespace PrototipoCRUD.Data
 
         public void RegistrarVenta(Venta venta)
         {
+            // 1. Cláusulas de guarda (validaciones rápidas antes de tocar la BD)
             if (venta == null)
-                throw new ArgumentNullException(nameof(venta));
+                throw new ArgumentNullException(nameof(venta), "No se recibieron los datos de la venta.");
 
             if (venta.Detalles == null || venta.Detalles.Count == 0)
-                throw new ArgumentException("La venta debe tener al menos un detalle.");
+                throw new ArgumentException("Debe agregar al menos un producto a la venta antes de confirmar.");
 
             if (venta.PorcentajeDescuento < 0 || venta.PorcentajeDescuento > 20)
                 throw new ArgumentOutOfRangeException(
@@ -33,13 +36,16 @@ namespace PrototipoCRUD.Data
                 ? "Vendedor General"
                 : venta.Vendedor.Trim();
 
-            using var conn = new NpgsqlConnection(_connectionString);
-            conn.Open();
-
-            using var tx = conn.BeginTransaction();
+            NpgsqlConnection? conn = null;
+            NpgsqlTransaction? tx = null;
 
             try
             {
+                // 2. Bloque TRY específico para la operación en PostgreSQL
+                conn = new NpgsqlConnection(_connectionString);
+                conn.Open();
+                tx = conn.BeginTransaction();
+
                 string sqlVenta = @"
                     INSERT INTO ventas (
                         fecha,
@@ -115,10 +121,57 @@ namespace PrototipoCRUD.Data
                 tx.Commit();
                 venta.Id = ventaId;
             }
+            catch (PostgresException exPg)
+            {
+                // 3a. Error específico del motor PostgreSQL (ej. violación de clave, restricción, etc.)
+                try { tx?.Rollback(); } catch { }
+                RegistrarLogTecnico(exPg);
+
+                if (exPg.SqlState == "23505")
+                    throw new InvalidOperationException("Ya existe un registro duplicado con esos datos. Verifique e intente nuevamente.");
+
+                if (exPg.SqlState == "23503")
+                    throw new InvalidOperationException("Uno de los productos seleccionados no existe o está vinculado a otro registro.");
+
+                throw new InvalidOperationException("No se pudo guardar la venta por una restricción de datos en la base de datos.");
+            }
+            catch (NpgsqlException exRed)
+            {
+                // 3b. Error de conexión o servicio PostgreSQL apagado
+                try { tx?.Rollback(); } catch { }
+                RegistrarLogTecnico(exRed);
+                throw new InvalidOperationException("No fue posible conectar con la base de datos en este momento. Verifique que el servicio PostgreSQL esté activo e intente nuevamente.");
+            }
+            catch (Exception exGeneral)
+            {
+                // 3c. Red de seguridad final: registra log y relanza preservando Call Stack
+                try { tx?.Rollback(); } catch { }
+                RegistrarLogTecnico(exGeneral);
+                throw;
+            }
+            finally
+            {
+                // 4. Limpieza garantizada de transacción y conexión
+                tx?.Dispose();
+                if (conn != null && conn.State == ConnectionState.Open)
+                {
+                    conn.Close();
+                }
+                conn?.Dispose();
+            }
+        }
+
+        private static void RegistrarLogTecnico(Exception ex)
+        {
+            try
+            {
+                string logPath = Path.Combine(AppContext.BaseDirectory, "errores_sistema.log");
+                string contenido = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}\n--------------------------------------------------\n";
+                File.AppendAllText(logPath, contenido);
+            }
             catch
             {
-                tx.Rollback();
-                throw;
+                // Evita que un problema al escribir el log oculte el error principal
             }
         }
     }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
@@ -20,30 +21,67 @@ namespace PrototipoCRUD.Controllers
         }
 
         private List<Producto> ObtenerProductos()
-        {
-            var lista = new List<Producto>();
+        {  var lista = new List<Producto>();
 
             if (string.IsNullOrWhiteSpace(_connectionString))
                 return lista;
 
-            using var conn = new NpgsqlConnection(_connectionString);
-            conn.Open();
+            NpgsqlConnection? conn = null;
 
-            string sql = "SELECT id, nombre, precio FROM productos ORDER BY nombre;";
-            using var cmd = new NpgsqlCommand(sql, conn);
-            using var reader = cmd.ExecuteReader();
-
-            while (reader.Read())
+            try
             {
-                lista.Add(new Producto
+                conn = new NpgsqlConnection(_connectionString);
+                conn.Open();
+
+                string sql = "SELECT id, nombre, precio FROM productos ORDER BY nombre;";
+                using var cmd = new NpgsqlCommand(sql, conn);
+                using var reader = cmd.ExecuteReader();
+
+                while (reader.Read())
                 {
-                    Id = reader.GetInt32(0),
-                    Nombre = reader.GetString(1),
-                    Precio = reader.GetDecimal(2)
-                });
+                    lista.Add(new Producto
+                    {
+                        Id = reader.GetInt32(0),
+                        Nombre = reader.GetString(1),
+                        Precio = reader.GetDecimal(2)
+                    });
+                }
+            }
+            catch (PostgresException exPg)
+            {
+                RegistrarLogControlador(exPg);
+            }
+            catch (NpgsqlException exRed)
+            {
+                RegistrarLogControlador(exRed);
+            }
+            catch (Exception ex)
+            {
+                RegistrarLogControlador(ex);
+                throw;
+            }
+            finally
+            {
+                if (conn != null && conn.State == ConnectionState.Open)
+                {
+                    conn.Close();
+                }
+                conn?.Dispose();
             }
 
             return lista;
+        }
+
+        private static void RegistrarLogControlador(Exception ex)
+        {         try
+            {
+                string logPath = System.IO.Path.Combine(AppContext.BaseDirectory, "errores_sistema.log");
+                string contenido = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}\n--------------------------------------------------\n";
+                System.IO.File.AppendAllText(logPath, contenido);
+            }
+            catch
+            {
+            }
         }
 
         [HttpGet]
