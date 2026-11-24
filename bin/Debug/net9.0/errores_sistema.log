@@ -1,9 +1,0 @@
-[2026-11-22 12:33:17] NpgsqlException: Exception while writing to stream
-   at Npgsql.Internal.NpgsqlWriteBuffer.Flush(Boolean async, CancellationToken cancellationToken)
-   at Npgsql.NpgsqlCommand.<Write>g__WriteExecute|103_0(NpgsqlConnector connector, Boolean async, Boolean flush, CancellationToken cancellationToken)
-   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
-   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
-   at Npgsql.NpgsqlCommand.ExecuteScalar(Boolean async, CancellationToken cancellationToken)
-   at Npgsql.NpgsqlCommand.ExecuteScalar()
-   at PrototipoCRUD.Data.VentaDAO.RegistrarVenta(Venta venta) in c:\Users\ASUS\Downloads\PrototipoCRUD\Data\VentaDAO.cs:line 84
---------------------------------------------------
