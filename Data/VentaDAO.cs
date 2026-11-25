@@ -17,7 +17,7 @@ namespace PrototipoCRUD.Data
 
         public void RegistrarVenta(Venta venta)
         {
-            // 1. Cláusulas de guarda (validaciones rápidas antes de tocar la BD)
+
             if (venta == null)
                 throw new ArgumentNullException(nameof(venta), "No se recibieron los datos de la venta.");
 
@@ -41,7 +41,7 @@ namespace PrototipoCRUD.Data
 
             try
             {
-                // 2. Bloque TRY específico para la operación en PostgreSQL
+
                 conn = new NpgsqlConnection(_connectionString);
                 conn.Open();
                 tx = conn.BeginTransaction();
@@ -123,7 +123,7 @@ namespace PrototipoCRUD.Data
             }
             catch (PostgresException exPg)
             {
-                // 3a. Error específico del motor PostgreSQL (ej. violación de clave, restricción, etc.)
+
                 try { tx?.Rollback(); } catch { }
                 RegistrarLogTecnico(exPg);
 
@@ -137,21 +137,21 @@ namespace PrototipoCRUD.Data
             }
             catch (NpgsqlException exRed)
             {
-                // 3b. Error de conexión o servicio PostgreSQL apagado
+
                 try { tx?.Rollback(); } catch { }
                 RegistrarLogTecnico(exRed);
                 throw new InvalidOperationException("No fue posible conectar con la base de datos en este momento. Verifique que el servicio PostgreSQL esté activo e intente nuevamente.");
             }
             catch (Exception exGeneral)
             {
-                // 3c. Red de seguridad final: registra log y relanza preservando Call Stack
+
                 try { tx?.Rollback(); } catch { }
                 RegistrarLogTecnico(exGeneral);
                 throw;
             }
             finally
             {
-                // 4. Limpieza garantizada de transacción y conexión
+
                 tx?.Dispose();
                 if (conn != null && conn.State == ConnectionState.Open)
                 {
@@ -171,7 +171,7 @@ namespace PrototipoCRUD.Data
             }
             catch
             {
-                // Evita que un problema al escribir el log oculte el error principal
+
             }
         }
     }
